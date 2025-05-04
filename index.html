@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Furniture Measurement Bill Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+            background-color: #f8f8f8;
+        }
+        h2 {
+            text-align: center;
+        }
+        input, select, button {
+            margin: 5px;
+            padding: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #0094ff;
+            color: white;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .btn-danger {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h2>Furniture Measurement Bill Generator</h2>
+
+    <div>
+        <input type="text" placeholder="Company Name" id="companyName">
+        <input type="text" placeholder="Contact Number" id="contactNumber">
+        <input type="text" placeholder="Client Name" id="clientName">
+        <input type="text" placeholder="Client Address" id="clientAddress">
+        <select id="room">
+            <option>Bedroom</option>
+            <option>Kitchen</option>
+            <option>Living Room</option>
+        </select>
+    </div>
+
+    <div>
+        <input type="text" placeholder="Sr.No" id="srno">
+        <input type="text" placeholder="Particular No" id="particular">
+        <input type="number" placeholder="Length" id="length">
+        <input type="number" placeholder="Breadth" id="breadth">
+        <input type="number" placeholder="Height" id="height">
+        <select id="unit">
+            <option>SQFT</option>
+            <option>UNIT</option>
+        </select>
+        <input type="number" placeholder="Rate" id="rate">
+        <input type="text" placeholder="Remark" id="remark">
+    </div>
+
+    <button class="btn" onclick="addMeasurement()">Add Measurement</button>
+    <button class="btn" onclick="exportToExcel()">Save as Excel</button>
+    <button class="btn" onclick="clearAll()">Clear All</button>
+
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>Room</th>
+                <th>Sr.No</th>
+                <th>Particular No</th>
+                <th>Length</th>
+                <th>Breadth</th>
+                <th>Height</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+                <th>Rate</th>
+                <th>Amount</th>
+                <th>Remark</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <script>
+        let measurements = [];
+
+        function addMeasurement() {
+            const room = document.getElementById('room').value;
+            const srno = document.getElementById('srno').value;
+            const particular = document.getElementById('particular').value;
+            const length = parseFloat(document.getElementById('length').value) || 0;
+            const breadth = parseFloat(document.getElementById('breadth').value) || 0;
+            const height = parseFloat(document.getElementById('height').value) || 1;
+            const unit = document.getElementById('unit').value;
+            const rate = parseFloat(document.getElementById('rate').value) || 0;
+            const remark = document.getElementById('remark').value;
+
+            const quantity = (unit === 'SQFT') ? length * breadth * height : 1;
+            const amount = quantity * rate;
+
+            const data = {
+                room, srno, particular, length, breadth, height,
+                quantity, unit, rate, amount, remark
+            };
+
+            measurements.push(data);
+            updateTable();
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            measurements.forEach((m, index) => {
+                const row = `<tr>
+                    <td>${m.room}</td>
+                    <td>${m.srno}</td>
+                    <td>${m.particular}</td>
+                    <td>${m.length}</td>
+                    <td>${m.breadth}</td>
+                    <td>${m.height}</td>
+                    <td>${m.quantity}</td>
+                    <td>${m.unit}</td>
+                    <td>${m.rate}</td>
+                    <td>${m.amount.toFixed(2)}</td>
+                    <td>${m.remark}</td>
+                    <td><button class='btn btn-danger' onclick='deleteRow(${index})'>Delete</button></td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function deleteRow(index) {
+            measurements.splice(index, 1);
+            updateTable();
+        }
+
+        function clearAll() {
+            measurements = [];
+            updateTable();
+        }
+
+        function exportToExcel() {
+            const workbook = XLSX.utils.book_new();
+            const roomGroups = {};
+
+            measurements.forEach(m => {
+                if (!roomGroups[m.room]) {
+                    roomGroups[m.room] = [];
+                }
+                roomGroups[m.room].push(m);
+            });
+
+            Object.keys(roomGroups).forEach(room => {
+                const sheetData = [];
+
+                // Company info
+                sheetData.push(['Company Name', document.getElementById('companyName').value]);
+                sheetData.push(['Contact Number', document.getElementById('contactNumber').value]);
+                sheetData.push(['Client Name', document.getElementById('clientName').value]);
+                sheetData.push(['Client Address', document.getElementById('clientAddress').value]);
+                sheetData.push([]);
+
+                // Table headers
+                sheetData.push([
+                    'Sr.No', 'Particular No', 'Length', 'Breadth', 'Height',
+                    'Quantity', 'Unit', 'Rate', 'Amount', 'Remark'
+                ]);
+
+                // Table rows
+                roomGroups[room].forEach((m, i) => {
+                    sheetData.push([
+                        m.srno,
+                        m.particular,
+                        m.length,
+                        m.breadth,
+                        m.height,
+                        m.quantity,
+                        m.unit,
+                        m.rate,
+                        m.amount.toFixed(2),
+                        m.remark
+                    ]);
+                });
+
+                const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+                XLSX.utils.book_append_sheet(workbook, worksheet, room);
+            });
+
+            XLSX.writeFile(workbook, 'Furniture_Measurements.xlsx');
+        }
+    </script>
+</body>
+</html>
